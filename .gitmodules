@@ -1,0 +1,3 @@
+[submodule "cirq"]
+	path = cirq
+	url = https://github.com/quantumlib/cirq
