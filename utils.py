@@ -2,8 +2,12 @@ import cirq
 import numpy as np
 
 
+def create_qubits(n):
+    return [cirq.GridQubit(i, 0) for i in range(n)]
+
+
 class U_f(cirq.Gate):
-    def __init__(self, f: function, nInp: int, nAnc: int):
+    def __init__(self, f, nInp: int, nAnc: int):
         super(U_f, self)
         self.f = f  # this is the function that we will be finding U_f for
         self.nInp = nInp  # these are the number of input bits to the function

@@ -4,6 +4,7 @@ import time
 
 import cirq
 import numpy as np
+from utils import create_qubits
 
 
 def multiply(x, y):
@@ -19,10 +20,6 @@ def multiply(x, y):
 def add(x, y):
     """The sum of two bits, mod 2."""
     return (x + y) % 2
-
-
-def create_qubits(n):
-    return [cirq.GridQubit(i, 0) for i in range(n)]
 
 
 class U_f(cirq.Gate):
@@ -118,7 +115,8 @@ if __name__ == "__main__":
             total_time += average_time
             num_cases += 1
 
-        print(f"average circuit time ({n=}): {total_time / (2 ** (n + 1))}")
+        print(f"average circuit time (n={n}): {total_time / (2 ** (n + 1))}")
 
         stop_time = time.perf_counter()
-        print(f"total time {n=}: {stop_time - start_time}, cases = {num_cases}")
+        print(
+            f"total time n={n}: {stop_time - start_time}, cases = {num_cases}")
