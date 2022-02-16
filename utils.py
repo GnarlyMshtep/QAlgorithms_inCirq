@@ -2,8 +2,25 @@ import cirq
 import numpy as np
 
 
+# bit ops
+def add(x, y):
+    """The sum of two bits, mod 2."""
+    return (x + y) % 2
+
+
+def multiply(x, y):
+    """Bitwise multiplication of two ints"""
+    ret = 0
+    while x or y:
+        ret += (x & 1) * (y & 1)
+        x >>= 1
+        y >>= 1
+    return bool(ret % 2)
+
+
+# U_f class
 class U_f(cirq.Gate):
-    def __init__(self, f: function, nInp: int, nAnc: int):
+    def __init__(self, f, nInp: int, nAnc: int):
         super(U_f, self)
         self.f = f  # this is the function that we will be finding U_f for
         self.nInp = nInp  # these are the number of input bits to the function
@@ -25,4 +42,4 @@ class U_f(cirq.Gate):
         )
 
     def _circuit_diagram_info_(self, args):
-        return f"U_f({self.f})"
+        return ["U_f"] * (self.nAnc + self.nAnc)

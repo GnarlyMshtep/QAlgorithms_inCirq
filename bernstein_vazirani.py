@@ -4,21 +4,8 @@ import time
 
 import cirq
 import numpy as np
+from utils import add, multiply
 
-
-def multiply(x, y):
-    """Bitwise multiplication of two ints"""
-    ret = 0
-    while x or y:
-        ret += (x & 1) * (y & 1)
-        x >>= 1
-        y >>= 1
-    return bool(ret % 2)
-
-
-def add(x, y):
-    """The sum of two bits, mod 2."""
-    return (x + y) % 2
 
 
 def create_qubits(n):
