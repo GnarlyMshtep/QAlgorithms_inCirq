@@ -66,7 +66,6 @@ class U_f(cirq.Gate):
         self.nAnc = nAnc  # these are the number of output bits of the function
         # N*N is the size of the U_f matrix
         self.N = (2**(nInp+nAnc))
-        print("is this greater than 16:", self.nInp)
 
     def _num_qubits_(self):
         return self.nInp+self.nAnc

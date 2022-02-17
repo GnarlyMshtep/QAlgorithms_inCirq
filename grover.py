@@ -1,9 +1,10 @@
 import random
 import time
-from math import pi, acos, floor, sin
+from math import pi, acos, floor, sin, sqrt
 from utils import U_f, create_qubits
 import cirq
 import sys
+import numpy as np
 
 
 def create_grover_iterated_subcircuit(qubits, u_f, k):
@@ -79,15 +80,33 @@ def run(n, f, a):
     return (result_int, stop_time - start_time)
 
 
-if __name__ == "__main__":
-    max_num_bits = None
-    num_cases = None
-    if len(sys.argv) == 3:
-        max_num_bits, num_cases = tuple(map(int, sys.argv[1:]))
-    else:
-        print("Usage: ./grover.py MAX_NUM_BITS NUM_CASES")
-        exit(1)
+def main_extended(max_num_bits, num_cases):
+    for num_bits in range(1, max_num_bits+1):
+        start_time_inc_setup = time.perf_counter()
+        total_run_time = 0
+        num_correct = 0
+        for i in range(num_cases):
+            N = 1 << num_bits
+            true_a = random.randint(1, N/2)
+            r = np.random.permutation([0]*true_a + [1]*(N-true_a))
+            def f(x): return r[x]
+            overall_correct = 0
+            for j in range(num_bits):
+                a = floor(sqrt(1 << j))
+                result, run_time = run(num_bits, f, a)
+                overall_correct = overall_correct or f(result)
+                total_run_time += run_time
+            num_correct += overall_correct
+        end_time_inc_setup = time.perf_counter()
+        print("")
+        print(f"Grover (unknown number of 1s) for n={num_bits} bits")
+        print(f"Total correct: {num_correct}/{num_cases}")
+        print(
+            f"Total run time including setup: {end_time_inc_setup-start_time_inc_setup:3f} s")
+        print(f"Average simulation run time: {total_run_time/num_cases:3f} s")
 
+
+def main(max_num_bits, num_cases):
     for num_bits in range(1, max_num_bits+1):
         start_time_inc_setup = time.perf_counter()
         total_run_time = 0
@@ -103,7 +122,7 @@ if __name__ == "__main__":
         end_time_inc_setup = time.perf_counter()
         print("")
         k, success_prob = calc_grover_params(1, num_bits)
-        print(f"Grover for n={num_bits} bits")
+        print(f"Grover (1-hot) for n={num_bits} bits")
         print(f"Using k={k} iterations")
         print(
             f"Expected correct: {floor(success_prob*num_cases+0.5)}/{num_cases}")
@@ -111,3 +130,17 @@ if __name__ == "__main__":
         print(
             f"Total run time including setup: {end_time_inc_setup-start_time_inc_setup:3f} s")
         print(f"Average simulation run time: {total_run_time/num_cases:3f} s")
+
+
+if __name__ == "__main__":
+    max_num_bits = None
+    num_cases = None
+    if len(sys.argv) == 3:
+        max_num_bits, num_cases = tuple(map(int, sys.argv[1:]))
+        main(max_num_bits, num_cases)
+    elif len(sys.argv) == 4 and sys.argv[1] == '--extended':
+        max_num_bits, num_cases = tuple(map(int, sys.argv[2:]))
+        main_extended(max_num_bits, num_cases)
+    else:
+        print("Usage: ./grover.py [--extended] MAX_NUM_BITS NUM_CASES")
+        exit(1)
