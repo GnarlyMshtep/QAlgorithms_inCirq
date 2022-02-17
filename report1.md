@@ -66,6 +66,10 @@ n        2                       3                4                     5
 [0.04760047999443486, 0.09705022997804917, 0.15907750999322162, 0.5400853600003757]  
 ```
 
+### Grover
+A challenge of implemneting grover was a subtle bug where sometimes the function would have no ones at all (hot elements) and this caused the acccuracy of grover to be bad for small values of `n`, where the err was found for `n=2` (where the algorithm should be perfect), and then the err was realised and fixed.
+
+
 Interestingly, one could see that circuit runtime takes only about 3/5 of the time. That is because the set up for simons is pretty intense, requiring us to create permutation of size 2**n. Additionally, the linear algebra and the on-line linear independence checking takes it
 ## Scalability
 
@@ -86,6 +90,15 @@ O(2**(0.5n)) iterations required for n bits input size.
 Each source file can be run on its own as a Python 3 program. In each source file, there is a wrapper function called run(n, f) that takes as arguments the number of bits of input to the function and the function as a mapping from integers to integers. 
 
 The 'if __name__ == "__main__":' section of each source file gives an example of how to use that file's run() function.
+
+## EXTENSIONS
+- B-Z, D-J: 
+  - Since those algorithms were kind-of basic, we felt that we had little to add. 
+- Simons: 
+  - rather than collecting a bunch of contraints, and then testing them, we test with every constraint we collect using on-line reduced-row-echelon-form of F_2 up until having enough linearly independent vectors, which we can use the same rref to solve
+- Grover
+  - The abillity to handle unknown number of hot elements in the database, by trying a strategic square-root spread across all the powers of n.  
+
 
 # COMMENTS ON CIRQ
 -------------------
