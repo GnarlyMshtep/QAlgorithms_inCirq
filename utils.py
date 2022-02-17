@@ -50,6 +50,8 @@ def bitstring_list_to_int(bitstring_list):
 def subtruct_bitstrings(subtruct_from: list, subtructor: list):
     assert(len(subtruct_from) == len(subtructor))
     return [(subtruct_from[i] - subtructor[i]) % 2 for i in range(len(subtructor))]
+def create_qubits(n):
+    return [cirq.GridQubit(i, 0) for i in range(n)]
 
 
 class U_f(cirq.Gate):
@@ -66,14 +68,10 @@ class U_f(cirq.Gate):
         return self.nInp+self.nAnc
 
     def _unitary_(self):
-        fEvals = [self.f(i) for i in range(2**self.nInp)]
-        return np.array(
-            [[(fEvals[col >> self.nAnc] ^ col) == row
-              for col in range(self.N)]
-                for row in range(self.N)]  # iterate over every location in the N*N matrix,
-            #                           at column col and row row we evaluate f on teh input bits (col with the ancila bits shifted out),
-            # xor it with the col (which is only the ancilla bits (which are lower)) and if we are on the row representing the ancilla bits that should be set
-        )
+        mat = np.zeros((self.N, self.N))
+        for i in range(self.N):
+            mat[self.f(i >> self.nAnc) ^ i, i] = 1
+        return mat
 
     def _circuit_diagram_info_(self, args):
         return ["U_f"] * (self.nAnc + self.nAnc)
