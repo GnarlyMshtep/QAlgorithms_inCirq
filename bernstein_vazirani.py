@@ -4,12 +4,7 @@ import time
 
 import cirq
 import numpy as np
-<<<<<<< HEAD
-from utils import add, multiply
-=======
-from utils import create_qubits
->>>>>>> fd9b9221c92824b3d46696fba8f084bfb8406c09
-
+from utils import add, multiply, create_qubits
 
 
 class U_f(cirq.Gate):

@@ -39,7 +39,9 @@ def result_to_bitlist(result, n):
     return a
 
 
-def bitstring_list_to_int(bitstring_list):
+def bitstring_to_int(bitstring_list: list):
+    assert(type(bitstring_list) == list)
+
     num = 0
     for i in range(len(bitstring_list)):
         num += bitstring_list[len(bitstring_list)-1-i] * 2**i
@@ -50,6 +52,8 @@ def bitstring_list_to_int(bitstring_list):
 def subtruct_bitstrings(subtruct_from: list, subtructor: list):
     assert(len(subtruct_from) == len(subtructor))
     return [(subtruct_from[i] - subtructor[i]) % 2 for i in range(len(subtructor))]
+
+
 def create_qubits(n):
     return [cirq.GridQubit(i, 0) for i in range(n)]
 
@@ -75,3 +79,49 @@ class U_f(cirq.Gate):
 
     def _circuit_diagram_info_(self, args):
         return ["U_f"] * (self.nAnc + self.nAnc)
+
+
+def rref_f2(matrix_orig: np.array):
+    if(len(matrix_orig) <= 0):
+        return error("I am mad!")
+
+    matrix = matrix_orig.copy()
+
+    num_rows = len(matrix)
+    num_cols = len(matrix[0])
+
+    free_cols = np.ones(num_cols, dtype=int)
+
+    for i in range(num_rows):
+
+        leftmost1_row = None
+        one_pos = len(matrix[0])
+
+        for j in range(i, num_rows):
+            np_nonz_tmp = np.nonzero(matrix[j])[0]
+            if len(np_nonz_tmp) == 0:
+                pass
+            elif np_nonz_tmp[0] < one_pos:
+                leftmost1_row = j
+                one_pos = np_nonz_tmp[0]
+
+        if(leftmost1_row == None):
+            break
+
+        free_cols[one_pos] = 0
+
+        print(i, leftmost1_row)
+        matrix[[i, leftmost1_row]] = matrix[[leftmost1_row, i]]
+
+        for j in range(num_rows):
+            if j == i:
+                continue
+
+            matrix[j] = (matrix[j] + matrix[i]*matrix[j][one_pos]) % 2
+
+    # DO THE OTHER STUFF
+    tmp1 = matrix.transpose().dot(matrix.dot(free_cols)) % 2
+    return matrix, tmp1 | free_cols
+
+
+#print('rref2', rref_f2(np.array([[1, 1, 0], [1, 0, 1], [1, 0, 1]])))

@@ -1,11 +1,14 @@
-CS 238 Report: 4 Algorithms in cirq
-James King, Matan Shtepel, Jacob Zhang
-February 16, 2022
+- CS 238 Report: 4 Algorithms in cirq
+- James King, Matan Shtepel, Jacob Zhang
+- February 16, 2022
+
+--------
 
 0. EXTENSIONS
--------------
-
-We implemented several substantial extensions to the assignment.
+- B-Z, D-J: 
+  - Since those algorithms were kind-of basic, we felt that we had little to add. 
+- Simons: 
+  - rather than collecting 4m 
 
 
 1. DESIGN AND EVALUATION
