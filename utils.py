@@ -18,7 +18,40 @@ def multiply(x, y):
     return bool(ret % 2)
 
 
+def result_to_int(result, n):
+    a = 0
+    for i in range(n):
+        [measurements_i] = result.measurements[f"q{i}"]
+        if len(set(measurements_i)) != 1:
+            raise ValueError("Something went wrong!")
+        a = (a << 1) + measurements_i[0]
+    return a
+
+
+def result_to_bitlist(result, n):
+    """"qbit 0 (MSB) is first"""
+    a = []
+    for i in range(n):
+        [measurements_i] = result.measurements[f"q{i}"]
+        if len(set(measurements_i)) != 1:
+            raise ValueError("Something went wrong!")
+        a.append(measurements_i[0])
+    return a
+
+
+def bitstring_list_to_int(bitstring_list):
+    num = 0
+    for i in range(len(bitstring_list)):
+        num += bitstring_list[len(bitstring_list)-1-i] * 2**i
+    return num
 # U_f class
+
+
+def subtruct_bitstrings(subtruct_from: list, subtructor: list):
+    assert(len(subtruct_from) == len(subtructor))
+    return [(subtruct_from[i] - subtructor[i]) % 2 for i in range(len(subtructor))]
+
+
 class U_f(cirq.Gate):
     def __init__(self, f, nInp: int, nAnc: int):
         super(U_f, self)
@@ -27,6 +60,7 @@ class U_f(cirq.Gate):
         self.nAnc = nAnc  # these are the number of output bits of the function
         # N*N is the size of the U_f matrix
         self.N = (2**(nInp+nAnc))
+        print("is this greater than 16:", self.nInp)
 
     def _num_qubits_(self):
         return self.nInp+self.nAnc
