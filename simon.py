@@ -41,7 +41,7 @@ def simon(n: int, f) -> BitArray:
     # M = sympy.Matrix(constraints)
     # s, _ = M.gauss_jordan_solve(sympy.Matrix(zeroVector))
     # list_s = np.array(s).astype(np.float64).tolist()
-    print('constraints', constraints)   
+    print('constraints', constraints)
     _, sol = rref_f2(np.array(constraints))
     ret_s = bitstring_to_int(list(sol))
     if f(0) != f(ret_s):
@@ -126,7 +126,7 @@ def initSimons(f, n: int):
     circuit.append(cirq.measure(q, key=f"q{i}")
                    for i, q in enumerate(qbits[:n]))
 
-    #print(circuit)
+    # print(circuit)
     return qbits, circuit
 
 
@@ -142,7 +142,7 @@ def constructSimonDict(n: int, s: int):
 if __name__ == "__main__":
     # start by constructing a function which meets the simon criterions
     MAX_S = 10
-    MAX_N = 10
+    MAX_N = 6
 
     # results = []
 
@@ -178,7 +178,8 @@ if __name__ == "__main__":
         circ_avg_runtimes.append(circ_runtime_per_n)
         tot_runtimes.append(runtime_per_n)
 
-    print(tot_runtimes, circ_avg_runtimes)
+    print('complete algorithm total runtimes (seconds)',
+          [average(row) for row in tot_runtimes], 'total_circ_run (seconds)', [average(row) for row in circ_avg_runtimes])
 """
 if __name__ == "__main__":
     max_n = 10
