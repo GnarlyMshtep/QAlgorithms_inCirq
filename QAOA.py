@@ -3,6 +3,8 @@ This is an implementation of the quantum approximation algorithm as proposed in 
 Our implementation draws much guidance from [Google's tutorial](https://quantumai.google/cirq/tutorials/qaoa) and improves it by allowing for a much wider range of graphs to be operated on. This is only possible since our implementation is simulated on a classical computer (where the relative "position" and "connections" between the simulated qubits are not taken into account).
 """
 
+from cmath import sin
+import random                   # to sample a random partition to check against QAOA
 import networkx as nx           # to construct and work with graphs graphs
 import matplotlib.pyplot as plt  # F_REMOVED: to draw examples along the way
 import numpy as np              # for general numberical manipulations
@@ -16,34 +18,82 @@ working_device = cirq_google.Bristlecone
 
 # print("our working device is", working_device)
 
+def is_not_proper_adjacency_matrix(l):
+    if not (isinstance(l, list) and isinstance(l[0], list)):
+        print(
+            'The input read is 1 dimensional or has no dimension at all. We need a matrix.')
+        return True
+
+    first_row_len = len(l[0])
+    if(first_row_len >= 16):
+        print('you have more then 16 nodes in your graph, we will run the program for you, but note that it might take ridicoulusly long')
+    # check that it's a matrix and that it's square
+    for row in l:
+        if len(row) != first_row_len:
+            print("the row", row, 'length is not', first_row_len,
+                  'as it should be. This is not a matrix, try again!')
+            return True
+    for i in range(first_row_len):
+        for j in range(first_row_len):
+            if i == j and l[i][j] != 0:
+                print('The node', i, 'has an edge of weight',
+                      l[i][j], 'with itself. In the context of this problem, it doesn\'t make sense.')
+                return True
+            if l[i][j] != l[j][i]:
+                print('The matrix at position', (i, j), 'does not equal the matrix in position',
+                      (j, i), '. Remember, this graph must be undirected.')
+                return True
+    return False
+
+
+def msinumeric(x):
+    if len(x) == 0:
+        return False
+    for char in x:
+        if char not in '0,1,2,3,4,5,6,7,8,9,.,-'.split(','):
+            return False
+    return True
+
+
+def rem_newline_and_return_self(lst):
+    y = [x for x in lst if msinumeric(x)]
+    print(y)
+    return y
+
 
 def generate_problem_instance():
     """
     Whip-up the problem instance. I'll take this as a given, and once everyhting else is working fine and dandy, I'll come back and change this.
     """
-    # Set the seed to determine the problem instance.
-    np.random.seed(seed=11)
+    with open('adjacency_matrix.txt', 'r') as f:
+        lines = f.readlines()
+        l = [[float(num) for num in rem_newline_and_return_self(line.strip().split(' '))]
+             for line in lines]
+    print(l)
+    # for now, it is the user's responsibility to create a proper adjacency matrix
+    if is_not_proper_adjacency_matrix(l):
+        print('As the last print indicated, your adjacency matrix is not proper.\n Exiting the program...')
+        exit(1)
 
-    # Identify working qubits from the device.
-    device_qubits = working_device.qubits
-    working_qubits = sorted(device_qubits)[:12]
-
-    # Populate a networkx graph with working_qubits as nodes.
+  # Populate a networkx graph with working_qubits as nodes.
     working_graph = nx.Graph()
-    for qubit in working_qubits:
-        working_graph.add_node(qubit)
+    for i in range(len(l[0])):  # add as many nodes as the adjacency matrix requests
+        working_graph.add_node(cirq.LineQubit(i))
 
     # Pair up all neighbors with random weights in working_graph.
-    for qubit in working_qubits:
-        for neighbor in working_device.neighbors_of(qubit):
-            if neighbor in working_graph:
-                # Generate a randomly weighted edge between them. Here the weighting
-                # is a random 2 decimal floating point between 0 and 5.
+    for i in range(len(l[0])):
+        # we must only iterate up to the diagonal since the matrix is symetric about it
+        for j in range(i, len(l[0])):
+            if l[i][j] > 0:
                 working_graph.add_edge(
-                    qubit, neighbor, weight=np.random.randint(0, 500) / 100
+                    cirq.LineQubit(i), cirq.LineQubit(j), weight=l[i][j]
                 )
 
-    nx.draw_circular(working_graph, node_size=1000, with_labels=True)
+    plt.title('Your original graph:')
+    nx.draw_spring(working_graph, node_size=1000, with_labels=True)
+    # nx.draw_networkx_edge_labels(
+    #   working_graph, pos=nx.spring_layout(working_graph))
+    print(working_graph.edges(data=True))
     plt.show()
     return working_graph
 
@@ -78,6 +128,8 @@ def estimate_cost(graph, samples):
     Estimate the cost function of the QAOA on the given graph using the
     provided computational basis bitstrings.
 
+
+    I STILL HAVE NO IDEA WHAT THIS DOES
     *this may be something which I shouldn't do? I think it for graphs with no definite edge weights and whatnot?*
     """
     cost_value = 0.0
@@ -100,6 +152,10 @@ def estimate_cost(graph, samples):
 
 
 def do_flag1(qaoa_circuit, working_graph):
+    """
+    This seems to be just try running the circuit on some arbitary alpha beta
+    """
+
     alpha_value = np.pi / 4
     beta_value = np.pi / 2
     sim = cirq.Simulator()
@@ -113,9 +169,8 @@ def do_flag1(qaoa_circuit, working_graph):
     print(f'Estimated cost: {estimate_cost(working_graph, sample_results)}')
 
 
-def search_over_parmspace():
+def search_over_parmspace_for_best_alpha_beta(sim, qaoa_circuit, grid_size):
     # Set the grid size = number of points in the interval [0, 2π).
-    grid_size = 5
 
     exp_values = np.empty((grid_size, grid_size))
     par_values = np.empty((grid_size, grid_size, 2))
@@ -129,13 +184,15 @@ def search_over_parmspace():
             )
             exp_values[i][j] = estimate_cost(working_graph, samples)
             par_values[i][j] = alpha_value, beta_value
-    plt.title('Heatmap of QAOA Cost Function Value')
-    plt.xlabel(r'$\alpha$')
-    plt.ylabel(r'$\beta$')
-    plt.imshow(exp_values)
+    # plt.title('Heatmap of QAOA Cost Function Value')
+    # plt.xlabel(r'$\alpha$')
+    # plt.ylabel(r'$\beta$')
+    # plt.imshow(exp_values)
+    # plt.show()
+    return exp_values, par_values
 
 
-def output_cut(S_partition):
+def visualise_cut(S_partition, working_graph, plt_title_string):
     """Plot and output the graph cut information.
 
     could be eventually removed
@@ -153,6 +210,7 @@ def output_cut(S_partition):
     edges = working_graph.edges(data=True)
     weights = [w['weight'] for (u, v, w) in edges]
 
+    plt.title(plt_title_string)
     nx.draw_circular(
         working_graph,
         node_color=coloring,
@@ -164,12 +222,12 @@ def output_cut(S_partition):
     print(f'Cut size: {size}')
 
 
-def do_qaoa():  # Number of candidate cuts to sample.
+# Number of candidate cuts to sample.
+def do_qaoa(sim, working_graph, qaoa_circuit, alpha_best, beta_best, num_cuts):
 
-    num_cuts = 100
     candidate_cuts = sim.sample(
         qaoa_circuit,
-        params={alpha: best_parameters[0], beta: best_parameters[1]},
+        params={alpha: alpha_best, beta: beta_best},
         repetitions=num_cuts
     )
 
@@ -194,22 +252,76 @@ def do_qaoa():  # Number of candidate cuts to sample.
 
         cut_size = nx.cut_size(
             working_graph, S_partition, T_partition, weight='weight')
-
+        print(i, 'th cut size:', cut_size)
         # If you found a better cut update best_qaoa_cut variables.
         if cut_size > best_qaoa_cut_size:
             best_qaoa_cut_size = cut_size
             best_qaoa_S_partition = S_partition
             best_qaoa_T_partition = T_partition
 
+    return best_qaoa_S_partition, best_qaoa_cut_size
+
+
+def get_best_random_cut_out_of(num_cuts):
+    best_random_S_partition = set()
+    best_random_T_partition = set()
+    best_random_cut_size = -9999
+
+    # Randomly build candidate sets.
+    for i in range(num_cuts):
+        S_partition = set()
+        T_partition = set()
+        for node in working_graph:
+            if random.random() > 0.5:
+                # If we flip heads add to S.
+                S_partition.add(node)
+            else:
+                # Otherwise add to T.
+                T_partition.add(node)
+
+        cut_size = nx.cut_size(
+            working_graph, S_partition, T_partition, weight='weight')
+
+        # If you found a better cut update best_random_cut variables.
+        if cut_size > best_random_cut_size:
+            best_random_cut_size = cut_size
+            best_random_S_partition = S_partition
+            best_random_T_partition = T_partition
+    return best_random_S_partition
+
 
 if __name__ == "__main__":
     alpha = sympy.Symbol('alpha')
     beta = sympy.Symbol('beta')
+    sim = cirq.Simulator()
 
     working_graph = generate_problem_instance()
-    circuit = construct_circuit(working_graph)
+    qaoa_circuit = construct_circuit(working_graph, alpha, beta)
+
+    # do_flag1(qaoa_circuit, working_graph)
 
     # get best params
+    grid_size = 6  # can increase to get better params
+    exp_values, par_values = search_over_parmspace_for_best_alpha_beta(
+        sim, qaoa_circuit, grid_size)
     best_exp_index = np.unravel_index(np.argmax(exp_values), exp_values.shape)
     best_parameters = par_values[best_exp_index]
     print(f'Best control parameters: {best_parameters}')
+
+    # finally do QAOA
+    num_cuts = 20  # increasing this generally makes the random search much better, but the qaoa search only slightly better
+    best_qaoa_S_partition, best_qaoa_cut_size = do_qaoa(
+        sim, working_graph, qaoa_circuit, best_parameters[0], best_parameters[1], num_cuts)
+    print('bests of QAOA:', best_qaoa_S_partition, best_qaoa_cut_size)
+    # do random guess for comparison
+    best_random_S_partition = get_best_random_cut_out_of(num_cuts)
+
+    # print the results
+
+    print('-----QAOA-----')
+    visualise_cut(best_qaoa_S_partition, working_graph,
+                  'The cut as found by QAOA')
+
+    print('\n\n-----RANDOM-----')
+    visualise_cut(best_random_S_partition, working_graph,
+                  'The cut as found by random searching')
