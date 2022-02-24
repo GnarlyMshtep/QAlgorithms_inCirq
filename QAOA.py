@@ -4,7 +4,8 @@ Our implementation draws much guidance from [Google's tutorial](https://quantuma
 """
 
 from cmath import sin
-import random                   # to sample a random partition to check against QAOA
+import random
+import time                   # to sample a random partition to check against QAOA
 import networkx as nx           # to construct and work with graphs graphs
 import matplotlib.pyplot as plt  # F_REMOVED: to draw examples along the way
 import numpy as np              # for general numberical manipulations
@@ -16,7 +17,8 @@ import cirq_google              # F_REMOVED to set working device below
 working_device = cirq_google.Bristlecone
 
 
-# print("our working device is", working_device)
+GRAPHICAL_DISPLAY = True
+
 
 def is_not_proper_adjacency_matrix(l):
     if not (isinstance(l, list) and isinstance(l[0], list)):
@@ -57,19 +59,19 @@ def msinumeric(x):
 
 def rem_newline_and_return_self(lst):
     y = [x for x in lst if msinumeric(x)]
-    print(y)
+    # print(y)
     return y
 
 
-def generate_problem_instance():
+def generate_problem_instance(n):
     """
     Whip-up the problem instance. I'll take this as a given, and once everyhting else is working fine and dandy, I'll come back and change this.
     """
-    with open('adjacency_matrix.txt', 'r') as f:
+    with open(f'adjacency_matrices/{n}', 'r') as f:
         lines = f.readlines()
         l = [[float(num) for num in rem_newline_and_return_self(line.strip().split(' '))]
              for line in lines]
-    print(l)
+    # print(l)
     # for now, it is the user's responsibility to create a proper adjacency matrix
     if is_not_proper_adjacency_matrix(l):
         print('As the last print indicated, your adjacency matrix is not proper.\n Exiting the program...')
@@ -88,14 +90,15 @@ def generate_problem_instance():
                 working_graph.add_edge(
                     cirq.LineQubit(i), cirq.LineQubit(j), weight=l[i][j]
                 )
-
-    plt.title('Your original graph:')
-    nx.draw_spring(working_graph, node_size=1000, with_labels=True)
-    # nx.draw_networkx_edge_labels(
-    #   working_graph, pos=nx.spring_layout(working_graph))
-    print(working_graph.edges(data=True))
-    plt.show()
-    return working_graph
+    num_nodes = working_graph.number_of_nodes()
+    if GRAPHICAL_DISPLAY:
+        plt.title(f'Your original graph, for size {num_nodes}:')
+        nx.draw_spring(working_graph, node_size=1000, with_labels=True)
+        # nx.draw_networkx_edge_labels(
+        #   working_graph, pos=nx.spring_layout(working_graph))
+        # print(working_graph.edges(data=True))
+        plt.show()
+    return working_graph, num_nodes
 
 
 def construct_circuit(working_graph, alpha, beta):
@@ -151,22 +154,22 @@ def estimate_cost(graph, samples):
     return -cost_value
 
 
-def do_flag1(qaoa_circuit, working_graph):
-    """
-    This seems to be just try running the circuit on some arbitary alpha beta
-    """
-
-    alpha_value = np.pi / 4
-    beta_value = np.pi / 2
-    sim = cirq.Simulator()
-
-    sample_results = sim.sample(
-        qaoa_circuit,
-        params={alpha: alpha_value, beta: beta_value},
-        repetitions=20_000
-    )
-    print(f'Alpha = {round(alpha_value, 3)} Beta = {round(beta_value, 3)}')
-    print(f'Estimated cost: {estimate_cost(working_graph, sample_results)}')
+# def do_flag1(qaoa_circuit, working_graph):
+#    """
+#    This seems to be just try running the circuit on some arbitary alpha beta
+#    """
+#
+#    alpha_value = np.pi / 4
+#    beta_value = np.pi / 2
+#    sim = cirq.Simulator()
+#
+#    sample_results = sim.sample(
+#        qaoa_circuit,
+#        params={alpha: alpha_value, beta: beta_value},
+#        repetitions=20_000
+#    )
+#    print(f'Alpha = {round(alpha_value, 3)} Beta = {round(beta_value, 3)}')
+#    print(f'Estimated cost: {estimate_cost(working_graph, sample_results)}')
 
 
 def search_over_parmspace_for_best_alpha_beta(sim, qaoa_circuit, grid_size):
@@ -184,11 +187,12 @@ def search_over_parmspace_for_best_alpha_beta(sim, qaoa_circuit, grid_size):
             )
             exp_values[i][j] = estimate_cost(working_graph, samples)
             par_values[i][j] = alpha_value, beta_value
-    # plt.title('Heatmap of QAOA Cost Function Value')
-    # plt.xlabel(r'$\alpha$')
-    # plt.ylabel(r'$\beta$')
-    # plt.imshow(exp_values)
-    # plt.show()
+    if GRAPHICAL_DISPLAY:
+        plt.title('Heatmap of QAOA Cost Function Value')
+        plt.xlabel(r'$\alpha$')
+        plt.ylabel(r'$\beta$')
+        plt.imshow(exp_values)
+        plt.show()
     return exp_values, par_values
 
 
@@ -209,28 +213,29 @@ def visualise_cut(S_partition, working_graph, plt_title_string):
     # Get the weights
     edges = working_graph.edges(data=True)
     weights = [w['weight'] for (u, v, w) in edges]
-
-    plt.title(plt_title_string)
-    nx.draw_circular(
-        working_graph,
-        node_color=coloring,
-        node_size=1000,
-        with_labels=True,
-        width=weights)
-    plt.show()
+    if GRAPHICAL_DISPLAY:
+        plt.title(plt_title_string)
+        nx.draw_circular(
+            working_graph,
+            node_color=coloring,
+            node_size=1000,
+            with_labels=True,
+            width=weights)
+        plt.show()
     size = nx.cut_size(working_graph, S_partition, weight='weight')
-    print(f'Cut size: {size}')
+    #print(f'Cut size: {size}')
+    return size
 
 
 # Number of candidate cuts to sample.
 def do_qaoa(sim, working_graph, qaoa_circuit, alpha_best, beta_best, num_cuts):
-
+    start_circ_time = time.perf_counter()
     candidate_cuts = sim.sample(
         qaoa_circuit,
         params={alpha: alpha_best, beta: beta_best},
         repetitions=num_cuts
     )
-
+    circ_runtime = time.perf_counter() - start_circ_time
     # Variables to store best cut partitions and cut size.
     best_qaoa_S_partition = set()
     best_qaoa_T_partition = set()
@@ -252,14 +257,14 @@ def do_qaoa(sim, working_graph, qaoa_circuit, alpha_best, beta_best, num_cuts):
 
         cut_size = nx.cut_size(
             working_graph, S_partition, T_partition, weight='weight')
-        print(i, 'th cut size:', cut_size)
+       # print(i, 'the cut size:', cut_size)
         # If you found a better cut update best_qaoa_cut variables.
         if cut_size > best_qaoa_cut_size:
             best_qaoa_cut_size = cut_size
             best_qaoa_S_partition = S_partition
             best_qaoa_T_partition = T_partition
 
-    return best_qaoa_S_partition, best_qaoa_cut_size
+    return best_qaoa_S_partition, best_qaoa_cut_size, circ_runtime
 
 
 def get_best_random_cut_out_of(num_cuts):
@@ -291,37 +296,67 @@ def get_best_random_cut_out_of(num_cuts):
 
 
 if __name__ == "__main__":
-    alpha = sympy.Symbol('alpha')
-    beta = sympy.Symbol('beta')
-    sim = cirq.Simulator()
+    qaoa_cut_sizes = []
+    random_cut_sizes = []
+    circ_runtimes = []
+    tot_runtimes = []
+    MIN_SIZE = 99
+    MAX_SIZE = 99
+    for n in range(MIN_SIZE, MAX_SIZE+1):
+        start_tot_time = time.perf_counter()
 
-    working_graph = generate_problem_instance()
-    qaoa_circuit = construct_circuit(working_graph, alpha, beta)
+        alpha = sympy.Symbol('alpha')
+        beta = sympy.Symbol('beta')
+        sim = cirq.Simulator()
 
-    # do_flag1(qaoa_circuit, working_graph)
+        working_graph, num_nodes = generate_problem_instance(n)
+        qaoa_circuit = construct_circuit(working_graph, alpha, beta)
 
-    # get best params
-    grid_size = 6  # can increase to get better params
-    exp_values, par_values = search_over_parmspace_for_best_alpha_beta(
-        sim, qaoa_circuit, grid_size)
-    best_exp_index = np.unravel_index(np.argmax(exp_values), exp_values.shape)
-    best_parameters = par_values[best_exp_index]
-    print(f'Best control parameters: {best_parameters}')
+        # do_flag1(qaoa_circuit, working_graph)
 
-    # finally do QAOA
-    num_cuts = 20  # increasing this generally makes the random search much better, but the qaoa search only slightly better
-    best_qaoa_S_partition, best_qaoa_cut_size = do_qaoa(
-        sim, working_graph, qaoa_circuit, best_parameters[0], best_parameters[1], num_cuts)
-    print('bests of QAOA:', best_qaoa_S_partition, best_qaoa_cut_size)
-    # do random guess for comparison
-    best_random_S_partition = get_best_random_cut_out_of(num_cuts)
+        # get best params
+        grid_size = 6  # can increase to get better params
+        exp_values, par_values = search_over_parmspace_for_best_alpha_beta(
+            sim, qaoa_circuit, grid_size)
+        best_exp_index = np.unravel_index(
+            np.argmax(exp_values), exp_values.shape)
+        best_parameters = par_values[best_exp_index]
+        # print(f'Best control parameters for, {n}: {best_parameters}')
 
-    # print the results
+        # finally do QAOA
+        num_cuts = 20  # increasing this generally makes the random search much better, but the qaoa search only slightly better
+        best_qaoa_S_partition, best_qaoa_cut_size, circ_runtime = do_qaoa(
+            sim, working_graph, qaoa_circuit, best_parameters[0], best_parameters[1], num_cuts)
+        circ_runtimes.append(circ_runtime)
 
-    print('-----QAOA-----')
-    visualise_cut(best_qaoa_S_partition, working_graph,
-                  'The cut as found by QAOA')
+        # print('best of QAOA:', best_qaoa_S_partition, best_qaoa_cut_size)
+        # do random guess for comparison
+        best_random_S_partition = get_best_random_cut_out_of(num_cuts)
 
-    print('\n\n-----RANDOM-----')
-    visualise_cut(best_random_S_partition, working_graph,
-                  'The cut as found by random searching')
+        # print the results
+
+        # print('-----QAOA-----')
+        qaoa_cut_sizes.append(visualise_cut(best_qaoa_S_partition, working_graph,
+                                            f'The cut as found by QAOA for size {num_nodes}')
+                              )
+        # print('\n\n-----RANDOM-----')
+        random_cut_sizes.append(visualise_cut(best_random_S_partition, working_graph,
+                                              f'The cut as found by random searching for size {num_nodes}')
+                                )
+        tot_runtimes.append(time.perf_counter() - start_tot_time)
+
+    precentege_in_circ = []
+    qaoa_rel_to_rand = []
+    print(
+        f'\tFINAL RESULTS FOR CIRCUITS [{MIN_SIZE},{MAX_SIZE+1})')
+    print('-------------------------------------------------------------------------\n')
+    for n in range(MAX_SIZE-MIN_SIZE+1):
+        precentege_in_circ.append(circ_runtimes[n]/tot_runtimes[n])
+        qaoa_rel_to_rand.append(qaoa_cut_sizes[n]/random_cut_sizes[n])
+        print(
+            f'For n={n+MIN_SIZE} we have a total circuit runtime {circ_runtimes[n]} and total runtime {tot_runtimes[n]} which means we spent {precentege_in_circ[n]} of the time runnign the circuit')
+        print(
+            f'\tQAOA found a best cut of size {qaoa_cut_sizes[n]} while random search found a best cut of size {random_cut_sizes[n]}, for relative score of {qaoa_rel_to_rand[n]}.')
+    print('\n\tFINAL RESULTS:')
+    print('-------------------------------------------------------------------------')
+    print(f'On average {np.average(np.array(precentege_in_circ))} of the time in circuits, and qaoa\'s relative preformence to random was {np.average(np.array(qaoa_rel_to_rand))}')
