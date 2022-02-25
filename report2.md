@@ -1,3 +1,190 @@
+# Shor's algorithm
+Our implementation is **not based on the Google tutorial** but rather on Scott Aaronson's notes (see citations). 
+We consider this an extension of the original question since this allows us to use significantly fewer qubits.
+With 14 qubits, we are able to factor numbers up to 63.
+Additionally, we have extended Shor to be able to use periods that are not even but instead divisible by 3.
+
+## Design & Evaluation 
+My implementation was parameterized in input size as follows: For input N, let n = floor(lg N) be the number of bits
+in the binary representation of n. Then we use at most 3n qubits (while Google requires 3n+3). The design allows for fewer qubits to be used at the expense of decreasing success probability of the period finding. Specifically, I think of the 3n qubits as being divided into two registers. The first is ideally of size 2n but can be smaller, as long as it is strictly larger than n. The second must be exactly of size n. Here is a table of the sizes I used for interesting values of N, since my computer can only handle 14 qubits with cirq's built-in simulator.
+
+| N (range) | n   | r1  | r2  | Total # qubits |
+| --------- | --- | --- | --- | -------------- |
+| 8-15      | 4   | 8   | 4   | 12             |
+| 16-31     | 5   | 9   | 5   | 14             |
+| 32-63     | 6   | 8   | 6   | 14             |
+
+Within the classical part of Shor's algorithm, there are a number of simple number-theoretic helper functions needed: gcd, is_prime, is_power. I tested these separately.
+The classical part also includes my extension to allow orders that are not
+even but instead divisible by 3.
+
+The quantum part of Shor's algorithm is the period finder. For the period finder, following Aaronson, I implemented a 
+unitary matrix representation U_f for the function f(r) = x^r mod N, where x is the random element of U_N chosen classically.
+Specifically, I think of the qubits as being divided into two registers.
+Then U_f(|r>|y>) = |r>|y XOR (x^r mod N)>. We then observe the second register, essentially committing to a value x^r1.
+The state of the first register becomes an evenly weighted combination of |r1 + s>, |r1 + 2s>, etc, where s is the period of x. We then apply the QFT to and observe the first register. Since before QFT the superposition of states are spread out essentially with period s, after QFT we should have almost all amplitude on states r0 such that r0s is a multiple of Q, i.e. r0s = kQ. So k/s ~= r0/Q. Note thats s < N/2 if N is composite while Q >> N. So we find the closest fraction to r0/Q with denominator < N/2. Unfortunately we can be wrong when gcd(k,s) != 1, which is why we check to make sure that x^s actually equals 1 mod N. 
+
+Here is the output for some interesting test cases:
+```
+$ for x in 1 2 3 4 15 21 33 45 63 ; do python3 shor.py $x ; done
+Trying to factor 1
+Boo, 1 is prime or 1!
+Total run time including setup: 0.000460 s
+
+Trying to factor 2
+Boo, 2 is even!
+Total run time including setup: 0.000793 s
+
+Trying to factor 3
+Boo, 3 is prime or 1!
+Total run time including setup: 0.000673 s
+
+Trying to factor 4
+Boo, 4 is a 2nd/rd/th power
+Total run time including setup: 0.001071 s
+
+Trying to factor 15
+Running period finder: trying 13
+Using 8 qubit input register and 4 ancillary qubits
+--SIMULATING--
+Got QFT result: 0/256
+Guessing denominator 1
+--SIMULATING--
+Got QFT result: 64/256
+Guessing denominator 4
+Cool, (x,r)=(13,4) did it!
+Found factor 3 of 15 in 2.0 invocations of the circuit
+Total time: 0.8748916999902576 s
+Average time per invocation: 0.4374458499951288 s
+Total run time including setup: 0.883601 s
+
+Trying to factor 21
+Running period finder: trying 11
+Using 9 qubit input register and 5 ancillary qubits
+--SIMULATING--
+Got QFT result: 82/512
+Guessing denominator 6
+Cool, (x,r)=(11,6) did it!
+Found factor 7 of 21 in 1.0 invocations of the circuit
+Total time: 22.304759299993748 s
+Average time per invocation: 22.304759299993748 s
+Total run time including setup: 22.315247 s
+
+Trying to factor 33
+Running period finder: trying 8
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 102/256
+Guessing denominator 5
+--SIMULATING--
+Got QFT result: 77/256
+Guessing denominator 10
+Darn, (x,r)=(8,10) didn't help factor N=33
+Running period finder: trying 1
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 0/256
+Guessing denominator 1
+Darn, (x,r)=(1,1) didn't help factor N=33
+Running period finder: trying 31
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 154/256
+Guessing denominator 5
+Darn, (x,r)=(31,5) didn't help factor N=33
+Running period finder: trying 5
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 77/256
+Guessing denominator 10
+Cool, (x,r)=(5,10) did it!
+Found factor 11 of 33 in 5.0 invocations of the circuit
+Total time: 70.96561849999125 s
+Average time per invocation: 14.19312369999825 s
+Total run time including setup: 70.995195 s
+
+Trying to factor 45
+Running period finder: trying 13
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 171/256
+Guessing denominator 3
+--SIMULATING--
+Got QFT result: 171/256
+Guessing denominator 3
+--SIMULATING--
+Got QFT result: 21/256
+Guessing denominator 12
+Cool, (x,r)=(13,12) did it!
+Found factor 9 of 45 in 3.0 invocations of the circuit
+Total time: 40.763321600010386 s
+Average time per invocation: 13.587773866670128 s
+Total run time including setup: 40.773549 s
+
+Trying to factor 63
+Running period finder: trying 10
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 213/256
+Guessing denominator 6
+Cool, (x,r)=(10,6) did it!
+Found factor 9 of 63 in 1.0 invocations of the circuit
+Total time: 13.53432099998463 s
+Average time per invocation: 13.53432099998463 s
+Total run time including setup: 13.540325 s
+```
+
+## Extension demo:
+
+We show the extension in action:
+
+```
+$ python3 shor.py --extended 57
+Trying to factor 57
+Running period finder: trying 1
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 0/256
+Guessing denominator 1
+Darn, (x,r)=(1,1) didn't help factor N=57
+Running period finder: trying 1
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 0/256
+Guessing denominator 1
+Darn, (x,r)=(1,1) didn't help factor N=57
+Running period finder: trying 55
+Using 8 qubit input register and 6 ancillary qubits
+--SIMULATING--
+Got QFT result: 142/256
+Guessing denominator 9
+Cool, (x,r)=(55,9) did it!
+Found factor 3 of 57 in 3.0 invocations of the circuit
+Total time: 42.83884580002632 s
+Average time per invocation: 14.27961526667544 s
+Total run time including setup: 42.853002 s
+```
+
+## README 
+- Simply run
+```
+$ python3 shor.py N
+```
+Where N is the number you wish to factor.
+If N will not be able to use a quantum circuit, then you will see a message explaining why not.
+Additionally, you should see output about the circuit as above.
+
+- If you want to use periods divisible by 3, you can try adding the --extended option:
+```
+$ python3 shor.py --extended N
+```
+Although this only helps if you use N=57 and you get lucky.
+
+## Citations
+Scott Aaronson: "Shor's Algorithm and Hidden Subgroup Problem", 2010.
+https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-845-quantum-complexity-theory-fall-2010/lecture-notes/MIT6_845F10_lec07.pdf
+
+
 # QAOA
 Our implementation is an instructed generalisation of https://quantumai.google/cirq/tutorials/qaoa. 
 ## Design & Evaluation 
@@ -76,7 +263,7 @@ For n=99 we have a total circuit runtime 0.07221340000978671 and total runtime 2
         FINAL RESULTS:
 -------------------------------------------------------------------------
 On average 0.0026722393763249216 of the time in circuits, and qaoa's relative preformence to random was 1.0968760572910794
-```s
+```
 ## Citations 
 - tutorial I used: https://quantumai.google/cirq/tutorials/qaoa 
 - to generate diagonal matrix: https://catonmat.net/tools/generate-symmetric-matrices
