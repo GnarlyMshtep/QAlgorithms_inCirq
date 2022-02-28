@@ -26,6 +26,24 @@ Specifically, I think of the qubits as being divided into two registers.
 Then U_f(|r>|y>) = |r>|y XOR (x^r mod N)>. We then observe the second register, essentially committing to a value x^r1.
 The state of the first register becomes an evenly weighted combination of |r1 + s>, |r1 + 2s>, etc, where s is the period of x. We then apply the QFT to and observe the first register. Since before QFT the superposition of states are spread out essentially with period s, after QFT we should have almost all amplitude on states r0 such that r0s is a multiple of Q, i.e. r0s = kQ. So k/s ~= r0/Q. Note thats s < N/2 if N is composite while Q >> N. So we find the closest fraction to r0/Q with denominator < N/2. Unfortunately we can be wrong when gcd(k,s) != 1, which is why we check to make sure that x^s actually equals 1 mod N. 
 
+## Scalability
+
+Here is a table showing the performance of the algorithm as n grows as measured by averaged total time:
+
+
+| n   | r1  | r2  | Total # qubits | Time (s) |
+| --- | --- | --- | -------------- | -------- |
+| 1   | 2   | 1   | 3              | 0.00046s |
+| 2   | 4   | 2   | 6              | 0.00079s |
+| 3   | 6   | 3   | 9              | 0.0011s  |
+| 4   | 8   | 4   | 12             | 0.88s    |
+| 5   | 9   | 5   | 14             | 22.3s    |
+| 6   | 8   | 6   | 14             | 41.8s    |
+
+As expected, 14 qubits is on the order of 4^2=16 times slower than 12 qubits. Although n=6 has the same number of qubits as n=5, more instantiations are needed on average both for number-theoretic reasons and because the quality of approximation is lower (r1 = 12 would be ideal, but we only have r1 = 8; r1=6 would be the absolute minimum).
+
+## Testing
+
 Here is the output for some interesting test cases:
 ```
 $ for x in 1 2 3 4 15 21 33 45 63 ; do python3 shor.py $x ; done
