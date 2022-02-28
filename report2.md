@@ -1,3 +1,5 @@
+WE HAVE GRAPHS! THEY ARE INCLUDED IN SEPRATE FILES
+
 # Shor's algorithm
 Our implementation is **not based on the Google tutorial** but rather on Scott Aaronson's notes (see citations). 
 We consider this an extension of the original question since this allows us to use significantly fewer qubits.
@@ -165,6 +167,12 @@ Average time per invocation: 14.27961526667544 s
 Total run time including setup: 42.853002 s
 ```
 
+## Graph
+Here is a graph showing the preformence of Shor's: 
+![Graph](images/simon_graph.jpg)
+
+The preformence graph looks somwwhat skewed because the first number that the algorithm can operate on is 15, since it is the first odd composite number that's not a prime power (As you know Shor's does not work on prime powers). 
+
 ## README 
 - Simply run
 ```
@@ -236,6 +244,9 @@ On average 0.0031011099107717097 of the time in circuits, and qaoa's relative pr
 ```
 
 As can be observed, on average QAOA preformed slightly better (that is because we set p=1, higher is not very simulatable) and as the time went on, the portion of the time spent simulating quantum circuits rather than setting up the problem isnatnce increased very rapidly (eponentially)
+
+Below is a graph of the preforemence detailed in the above printed report 
+![qaoa_graph.jpg](images/qaoa_graph.jpg)
 
 ## README 
 - fill in the adjacency matrix of ur choosing in `adjacency_matrices/99`
